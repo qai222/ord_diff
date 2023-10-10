@@ -71,6 +71,8 @@ class CompoundDictionary(OrdDictionary):
 
 
 class OrdDiffCompound(OrdDiff):
+    """ comparison between two `Compound` dictionaries """
+
     kind = DiffKind.COMPOUND
 
     m1: CompoundDictionary
@@ -82,6 +84,8 @@ class OrdDiffCompound(OrdDiff):
     leafs_removed: list[CompoundLeaf]  # from m1
 
     leafs_altered: list[tuple[CompoundLeaf, CompoundLeaf]]  # from (m1, m2)
+
+    deep_distance: float
 
     @classmethod
     def from_pair(cls, m1: CompoundDictionary, m2: CompoundDictionary):
@@ -96,4 +100,5 @@ class OrdDiffCompound(OrdDiff):
             leafs_added=[m2.get_leaf(path_tuple=pt) for pt in leafs_added],
             leafs_removed=[m1.get_leaf(path_tuple=pt) for pt in leafs_removed],
             leafs_altered=[m1.get_leaf(path_tuple=pt) for pt in leafs_altered],
+            deep_distance=deep_distance,
         )
