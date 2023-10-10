@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from abc import ABC, abstractmethod
 from enum import Enum
 
 from pydantic import BaseModel
@@ -58,7 +59,7 @@ class DiffKind(str, Enum):
     LIST_OF_REACTION_WORKUPS = "LIST_OF_REACTION_WORKUPS"
 
 
-class OrdDiff(BaseModel):
+class OrdDiff(ABC, BaseModel):
     """ base model for a comparison """
 
     kind: DiffKind
@@ -66,6 +67,11 @@ class OrdDiff(BaseModel):
     m1: OrdDictionary | list[OrdDictionary] | list[list[OrdDictionary]] | None = None
 
     m2: OrdDictionary | list[OrdDictionary] | list[list[OrdDictionary]] | None = None
+
+    @property
+    @abstractmethod
+    def leaf_df(self):
+        pass
 
     class Config:
         validate_assignment = True

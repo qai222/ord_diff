@@ -112,13 +112,18 @@ def find_best_match(indices1: list[int], indices2: list[int | None], distance_ma
 def parse_deepdiff(dd: DeepDiff):
     """
     given a deepdiff (tree view), return leafs that are added/removed/altered
-    IMPORTANT: because we use ignore_order in deepdiff, for an alteration determined by deepdiff,
+    IMPORTANT: because we use ignore_order in deepdiff, for a change determined by deepdiff,
     the m1_path_list may be different from m2_path_list
     """
-    deep_distance = None
+    deep_distance = 0
+    paths_added = []
+    paths_removed = []
+    paths_altered_1 = []
+    paths_altered_2 = []
     leafs_added = []
     leafs_removed = []
-    leafs_altered = []
+    leafs_altered_1 = []
+    leafs_altered_2 = []
     for dd_report_key, v in dd.to_dict().items():
         dd_report_key: str
         v: PrettyOrderedSet[DiffLevel] | float
@@ -130,18 +135,29 @@ def parse_deepdiff(dd: DeepDiff):
             is_t1_none = isinstance(value_altered_level.t1, NotPresent)
             is_t2_none = isinstance(value_altered_level.t2, NotPresent)
 
-            path_list = value_altered_level.path(output_format='list')
-            t1s_from_root = flat_deepdiff_entry(value_altered_level.t1, path_list)
-            t2s_from_root = flat_deepdiff_entry(value_altered_level.t2, path_list)
+            path_list_to_t1 = value_altered_level.path(output_format='list', use_t2=False)
+            path_list_to_t2 = value_altered_level.path(output_format='list', use_t2=True)
+
+            t1_leafs_from_root = flat_deepdiff_entry(value_altered_level.t1, path_list_to_t1)
+            t2_leafs_from_root = flat_deepdiff_entry(value_altered_level.t2, path_list_to_t2)
 
             if is_t1_none and not is_t2_none:
-                leafs_added.append(list(t2s_from_root.keys()))
+                paths_added.append(path_list_to_t2)
+                leafs_added += list(t2_leafs_from_root.keys())
             elif not is_t1_none and is_t2_none:
-                leafs_removed.append(list(t1s_from_root.keys()))
+                paths_removed.append(path_list_to_t1)
+                leafs_removed += list(t1_leafs_from_root.keys())
             elif not is_t1_none and not is_t2_none:
-                # not this assignment may not be the actual assignment for fct:
-                # ex. I can have a sub-field in t1 removed
-                leafs_altered.append(list(t1s_from_root.keys()))  # based on t1
+                # TODO note this assignment may not be the actual assignment for leafs:
+                #  ex. I can have a sub-field in t1 removed
+                paths_altered_1.append(path_list_to_t1)
+                paths_altered_2.append(path_list_to_t2)
+                leafs_altered_1 += list(t1_leafs_from_root.keys())
+                leafs_altered_2 += list(t2_leafs_from_root.keys())
             else:
                 raise ValueError
-    return deep_distance, leafs_added, leafs_removed, leafs_altered
+    return (
+        deep_distance,
+        paths_added, paths_removed, paths_altered_1, paths_altered_2,
+        leafs_added, leafs_removed, leafs_altered_1, leafs_altered_2
+    )
