@@ -37,13 +37,6 @@ def get_compound_leaf_type_counter(cd: OrdDictionary):
     return counter
 
 
-def get_compound_name(cd: OrdDictionary):
-    for identifier in cd.d["identifiers"]:
-        if identifier['type'] == 'NAME':
-            return identifier['value']  # assuming only one name is defined
-    raise ValueError('`NAME` not found in the compound dict')
-
-
 def get_compound_leaf_diff(compound_diff: OrdDiff):
     records = []
     for leaf in compound_diff.m1.leafs:
@@ -55,8 +48,8 @@ def get_compound_leaf_diff(compound_diff: OrdDiff):
             ct = None
         record = {
             "from": "m1",
-            "path": ".".join(leaf.path_list),
-            "leaf_type": leaf.leaf_type,
+            "path": ".".join([str(p) for p in leaf.path_list]),
+            "leaf_type": get_compound_leaf_type(leaf),
             "change_type": ct,
         }
         records.append(record)
@@ -65,7 +58,7 @@ def get_compound_leaf_diff(compound_diff: OrdDiff):
             record = {
                 "from": "m2",
                 "path": ".".join(leaf.path_list),
-                "leaf_type": leaf.leaf_type,
+                "leaf_type": get_compound_leaf_type(leaf),
                 "change_type": DeltaType.ADDITION,
             }
             records.append(record)

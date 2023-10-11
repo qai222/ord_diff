@@ -103,10 +103,7 @@ def find_best_match(indices1: list[int], indices2: list[int | None], distance_ma
             best_match_solution = match
 
     assert best_match_solution is not None
-    for i1, i2 in zip(indices1, best_match_solution):
-        if i2 is None:
-            continue
-    return best_match_solution
+    return dict(zip(indices1, [*best_match_solution]))
 
 
 def parse_deepdiff(dd: DeepDiff):
@@ -120,10 +117,10 @@ def parse_deepdiff(dd: DeepDiff):
     paths_removed = []
     paths_altered_1 = []
     paths_altered_2 = []
-    leafs_added = []
-    leafs_removed = []
-    leafs_altered_1 = []
-    leafs_altered_2 = []
+    leaf_paths_added = []
+    leaf_paths_removed = []
+    leaf_paths_altered_1 = []
+    leaf_paths_altered_2 = []
     for dd_report_key, v in dd.to_dict().items():
         dd_report_key: str
         v: PrettyOrderedSet[DiffLevel] | float
@@ -143,23 +140,23 @@ def parse_deepdiff(dd: DeepDiff):
 
             if is_t1_none and not is_t2_none:
                 paths_added.append(path_list_to_t2)
-                leafs_added += list(t2_leafs_from_root.keys())
+                leaf_paths_added += list(t2_leafs_from_root.keys())
             elif not is_t1_none and is_t2_none:
                 paths_removed.append(path_list_to_t1)
-                leafs_removed += list(t1_leafs_from_root.keys())
+                leaf_paths_removed += list(t1_leafs_from_root.keys())
             elif not is_t1_none and not is_t2_none:
                 # TODO note this assignment may not be the actual assignment for leafs:
                 #  ex. I can have a sub-field in t1 removed
                 paths_altered_1.append(path_list_to_t1)
                 paths_altered_2.append(path_list_to_t2)
-                leafs_altered_1 += list(t1_leafs_from_root.keys())
-                leafs_altered_2 += list(t2_leafs_from_root.keys())
+                leaf_paths_altered_1 += list(t1_leafs_from_root.keys())
+                leaf_paths_altered_2 += list(t2_leafs_from_root.keys())
             else:
                 raise ValueError
     return (
         deep_distance,
         paths_added, paths_removed, paths_altered_1, paths_altered_2,
-        leafs_added, leafs_removed, leafs_altered_1, leafs_altered_2
+        leaf_paths_added, leaf_paths_removed, leaf_paths_altered_1, leaf_paths_altered_2
     )
 
 

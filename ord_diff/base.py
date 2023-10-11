@@ -13,7 +13,7 @@ from .utils import parse_deepdiff, flatten, find_best_match
 class OrdLeaf(BaseModel):
     """ base model for an ORD literal field """
 
-    path_list: list[str, int]
+    path_list: list[str | int]
 
     value: str | int | float
 
@@ -90,13 +90,13 @@ class OrdDiff(BaseModel):
         (
             deep_distance,
             paths_added, paths_removed, paths_altered_1, paths_altered_2,
-            leafs_added, leafs_removed, leafs_altered_1, leafs_altered_2,
+            leaf_paths_added, leaf_paths_removed, leaf_paths_altered_1, leaf_paths_altered_2,
         ) = parse_deepdiff(dd)
 
         delta_leafs = {
-            DeltaType.ADDITION: leafs_added,
-            DeltaType.REMOVAL: leafs_removed,
-            DeltaType.ALTERATION: leafs_altered_1
+            DeltaType.ADDITION: [m2.get_leaf(p) for p in leaf_paths_added],
+            DeltaType.REMOVAL: [m1.get_leaf(p) for p in leaf_paths_removed],
+            DeltaType.ALTERATION: [m1.get_leaf(p) for p in leaf_paths_altered_1],
         }
 
         delta_paths = {
@@ -167,8 +167,8 @@ class OrdListDiff(BaseModel):
 
     @classmethod
     def from_ord(cls, m1_list, m2_list, message_type="COMPOUND"):
-        m1_list = [json_format.MessageToDict(c) for c in m1_list]
-        m2_list = [json_format.MessageToDict(c) for c in m2_list]
+        m1_list = [OrdDictionary.from_dict(json_format.MessageToDict(c)) for c in m1_list]
+        m2_list = [OrdDictionary.from_dict(json_format.MessageToDict(c)) for c in m2_list]
         return OrdListDiff.from_pair(m1_list, m2_list, message_type)
 
     @classmethod
@@ -183,10 +183,6 @@ class OrdListDiff(BaseModel):
         1. each compound in ref_compounds is matched with one from act_compounds, matched with None if missing
         2. use deepdiff to inspect matched pairs
         """
-        # make sure names are defined for every compound
-        for c in m1_list + m2_list:
-            assert isinstance(c.compound_name, str)
-
         if message_type == "COMPOUND":
             matched_i2s = OrdListDiff.get_index_match_compound(m1_list, m2_list)
         else:
@@ -216,9 +212,10 @@ class OrdListDiff(BaseModel):
     @staticmethod
     def get_index_match_dummy(m1_list: list[OrdDictionary], m2_list: list[OrdDictionary], ):
         if len(m1_list) <= len(m2_list):
-            return [*range(len(m1_list))]
+            i2s = [*range(len(m1_list))]
         else:
-            return [*range(len(m2_list))] + [None, ] * (len(m1_list) - len(m2_list))
+            i2s = [*range(len(m2_list))] + [None, ] * (len(m1_list) - len(m2_list))
+        return {i: j for i, j in zip(range(len(m1_list)), i2s)}
 
     @staticmethod
     def get_index_match_compound(m1_list: list[OrdDictionary], m2_list: list[OrdDictionary], ):
@@ -236,17 +233,17 @@ class OrdListDiff(BaseModel):
         dist_mat = np.zeros((len(indices1), len(indices2)))
         for i1 in indices1:
             cd1 = m1_list[i1]
-            name1 = cd1.compound_name
+            name1 = get_compound_name(cd1)
             for i2 in indices2:
                 cd2 = m2_list[i2]
-                name2 = cd2.compound_name
+                name2 = get_compound_name(cd2)
                 try:
                     distance_name = DeepDiff(name1, name2, get_deep_distance=True).to_dict()['deep_distance']
                 except KeyError:
                     distance_name = 0
                 try:
                     distance_full = DeepDiff(
-                        cd1, cd2, get_deep_distance=True, ignore_order=True
+                        cd1.d, cd2.d, get_deep_distance=True, ignore_order=True
                     ).to_dict()['deep_distance']
                 except KeyError:
                     distance_full = 0
@@ -270,3 +267,10 @@ class DeltaType(str, Enum):
 
     # ref is not None, act is not None (alteration)
     ALTERATION = "ALTERATION"
+
+
+def get_compound_name(cd: OrdDictionary):
+    for identifier in cd.d["identifiers"]:
+        if identifier['type'] == 'NAME':
+            return identifier['value']  # assuming only one name is defined
+    raise ValueError('`NAME` not found in the compound dict')
