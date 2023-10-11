@@ -161,3 +161,21 @@ def parse_deepdiff(dd: DeepDiff):
         paths_added, paths_removed, paths_altered_1, paths_altered_2,
         leafs_added, leafs_removed, leafs_altered_1, leafs_altered_2
     )
+
+
+def flat_list_of_lists(lol: list[list]) -> tuple[list, dict[tuple[int, int], int]]:
+    """
+    flat to a list
+
+    :param lol: list of lists
+    :return: the flat list, a map of <tuple index of lol (i,j)> -> <flat list index>
+    """
+    flat = []
+    map_lol_to_flat = dict()
+    i_flat = 0
+    for i, sub_list in enumerate(lol):
+        for j, item in enumerate(sub_list):
+            flat.append(item)
+            map_lol_to_flat[(i, j)] = i_flat
+            i_flat += 1
+    return flat, map_lol_to_flat
