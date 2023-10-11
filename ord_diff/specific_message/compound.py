@@ -4,7 +4,8 @@ from enum import Enum
 
 import pandas as pd
 
-from ..base import OrdDiff, OrdLeaf, OrdDictionary, DeltaType
+from ..base import OrdDiff, OrdLeaf, OrdDictionary, DeltaType, OrdListDiff
+from ..utils import flat_list_of_lists
 
 
 class CompoundLeafType(str, Enum):
@@ -69,3 +70,57 @@ def get_compound_leaf_diff(compound_diff: OrdDiff):
             }
             records.append(record)
     return pd.DataFrame.from_records(records)
+
+
+def get_compound_list_leaf_diff(compound_list_diff: OrdListDiff):
+    dfs = []
+    for i, diff in enumerate(compound_list_diff.pair_comparisons):
+        if diff is None:
+            continue
+        df = get_compound_leaf_diff(diff)
+        df['pair_index'] = i
+        dfs.append(df)
+    return pd.concat(dfs, ignore_index=True)
+
+
+def get_misplaced_lol(
+        lol_cd1: list[list[OrdDictionary]],
+        lol_cd2: list[list[OrdDictionary]],
+):
+    """ determine how many compound lists in `lol_c1` are misplaced in `lol_c2` """
+    lol_cd1_flat, lol_to_flat_cd1 = flat_list_of_lists(lol_cd1)
+    lol_cd2_flat, lol_to_flat_cd2 = flat_list_of_lists(lol_cd2)
+    flat_to_lol_cd1 = {v: k for k, v in lol_to_flat_cd1.items()}
+    flat_to_lol_cd2 = {v: k for k, v in lol_to_flat_cd2.items()}
+
+    matched_i2s = OrdListDiff.get_index_match_compound(lol_cd1_flat, lol_cd2_flat)
+    lol1_to_lol2 = dict()
+    for lol_index_1 in lol_to_flat_cd1:
+        flat_index_1 = lol_to_flat_cd1[lol_index_1]
+        matched_index_2 = matched_i2s[flat_index_1]
+        if matched_index_2 is None:
+            lol_index_2 = None
+        else:
+            lol_index_2 = flat_to_lol_cd2[matched_index_2]
+        lol1_to_lol2[lol_index_1] = lol_index_2
+
+    misplaced_groups = []
+    for i, group in enumerate(lol_cd1):
+        is_misplaced = False
+        group_indices_1 = [(i, j) for j in range(len(group))]
+        group_indices_2 = [lol1_to_lol2[gi] for gi in group_indices_1]
+        if None in group_indices_2:
+            # print("group element missing")
+            is_misplaced = True
+        elif len(set([x[0] for x in group_indices_2])) != 1:
+            # print("group split")
+            is_misplaced = True
+        elif len(lol_cd2[group_indices_2[0][0]]) > len(group):
+            # print("group expanded")
+            is_misplaced = True
+        elif len(lol_cd2[group_indices_2[0][0]]) < len(group):
+            # print("group contracted")  # never happens as the matching algo fills None
+            is_misplaced = True
+        if is_misplaced:
+            misplaced_groups.append(group)
+    return misplaced_groups
