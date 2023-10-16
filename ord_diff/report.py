@@ -1,27 +1,13 @@
 from __future__ import annotations
 
-from enum import Enum
-
 import pandas as pd
 
-from ..base import OrdDiff, OrdLeaf, OrdDictionary, DeltaType, OrdListDiff
-from ..utils import flat_list_of_lists
+from ord_diff.base import CompoundLeafType, DeltaType
+from ord_diff.schema import MDict, MDictListDiff, MDictDiff, MessageType, Leaf
+from ord_diff.utils import flat_list_of_lists
 
 
-class CompoundLeafType(str, Enum):
-    """ they should be *disjoint* so any leaf of a compound can only be one of the these classes """
-
-    reaction_role = 'reactionRole'
-    # NOTE: this would have been `reaction_role` but field names are turned into camelCase by default
-
-    identifiers = 'identifiers'
-
-    amount = 'amount'
-
-    other = 'other'
-
-
-def get_compound_leaf_type(leaf: OrdLeaf):
+def get_compound_leaf_type(leaf: Leaf):
     for ck in list(CompoundLeafType):
         if ck == CompoundLeafType.other:
             continue
@@ -30,55 +16,66 @@ def get_compound_leaf_type(leaf: OrdLeaf):
     return CompoundLeafType.other
 
 
-def get_compound_leaf_type_counter(cd: OrdDictionary):
+def get_compound_leaf_type_counter(cd: MDict):
     counter = {clt: 0 for clt in list(CompoundLeafType) + [None, ]}
     for leaf in cd.leafs:
         counter[get_compound_leaf_type(leaf)] += 1
     return counter
 
 
-def get_compound_leaf_diff(compound_diff: OrdDiff):
+def report_diff(
+        diff: MDictDiff, message_type: MessageType = None
+):
     records = []
-    for leaf in compound_diff.m1.leafs:
-        if leaf in compound_diff.delta_leafs[DeltaType.REMOVAL]:
+    for leaf in diff.md1.leafs:
+        if leaf in diff.delta_leafs[DeltaType.REMOVAL]:
             ct = DeltaType.REMOVAL
-        elif leaf in compound_diff.delta_leafs[DeltaType.ALTERATION]:
+        elif leaf in diff.delta_leafs[DeltaType.ALTERATION]:
             ct = DeltaType.ALTERATION
         else:
             ct = None
         record = {
             "from": "m1",
             "path": ".".join([str(p) for p in leaf.path_list]),
-            "leaf_type": get_compound_leaf_type(leaf),
             "change_type": ct,
         }
+        if message_type == MessageType.COMPOUND:
+            record['leaf_type'] = get_compound_leaf_type(leaf)
         records.append(record)
-    for leaf in compound_diff.m2.leafs:
-        if leaf in compound_diff.delta_leafs[DeltaType.ADDITION]:
+    for leaf in diff.md2.leafs:
+        if leaf in diff.delta_leafs[DeltaType.ADDITION]:
             record = {
                 "from": "m2",
                 "path": ".".join(leaf.path_list),
-                "leaf_type": get_compound_leaf_type(leaf),
                 "change_type": DeltaType.ADDITION,
             }
+            if message_type == MessageType.COMPOUND:
+                record['leaf_type'] = get_compound_leaf_type(leaf)
             records.append(record)
     return pd.DataFrame.from_records(records)
 
 
-def get_compound_list_leaf_diff(compound_list_diff: OrdListDiff):
+def report_diff_compound_list(
+        # input1: list[reaction_pb2.Compound],
+        # input2: list[reaction_pb2.Compound],
+        # text1:str = None,
+        # text2:str = None,
+        compound_list_diff: MDictListDiff
+):
+    # compound_list_diff = MDictListDiff.from_message_list_pair(input1, input2, MessageType.COMPOUND, text1, text2)
     dfs = []
     for i, diff in enumerate(compound_list_diff.pair_comparisons):
         if diff is None:
             continue
-        df = get_compound_leaf_diff(diff)
+        df = report_diff(diff, message_type=MessageType.COMPOUND)
         df['pair_index'] = i
         dfs.append(df)
     return pd.concat(dfs, ignore_index=True)
 
 
-def get_misplaced_lol(
-        lol_cd1: list[list[OrdDictionary]],
-        lol_cd2: list[list[OrdDictionary]],
+def get_misplaced_compound_lol(
+        lol_cd1: list[list[MDict]],
+        lol_cd2: list[list[MDict]],
 ):
     """ determine how many compound lists in `lol_c1` are misplaced in `lol_c2` """
     lol_cd1_flat, lol_to_flat_cd1 = flat_list_of_lists(lol_cd1)
@@ -86,7 +83,7 @@ def get_misplaced_lol(
     flat_to_lol_cd1 = {v: k for k, v in lol_to_flat_cd1.items()}
     flat_to_lol_cd2 = {v: k for k, v in lol_to_flat_cd2.items()}
 
-    matched_i2s = OrdListDiff.get_index_match_compound(lol_cd1_flat, lol_cd2_flat)
+    matched_i2s = MDictListDiff.get_index_match(lol_cd1_flat, lol_cd2_flat, message_type=MessageType.COMPOUND)
     lol1_to_lol2 = dict()
     for lol_index_1 in lol_to_flat_cd1:
         flat_index_1 = lol_to_flat_cd1[lol_index_1]
