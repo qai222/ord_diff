@@ -38,6 +38,7 @@ def report_diff(
             "from": "m1",
             "path": ".".join([str(p) for p in leaf.path_list]),
             "change_type": ct,
+            "is_explicit": leaf.is_explicit,
         }
         if message_type == MessageType.COMPOUND:
             record['leaf_type'] = get_compound_leaf_type(leaf)
@@ -48,6 +49,7 @@ def report_diff(
                 "from": "m2",
                 "path": ".".join([str(p) for p in leaf.path_list]),
                 "change_type": DeltaType.ADDITION,
+                "is_explicit": leaf.is_explicit,
             }
             if message_type == MessageType.COMPOUND:
                 record['leaf_type'] = get_compound_leaf_type(leaf)
