@@ -11,6 +11,7 @@ class MessageType(str, Enum):
     REACTION_WORKUP = "REACTION_WORKUP"
     COMPOUND = "COMPOUND"
     REACTION_CONDITIONS = "REACTION_CONDITIONS"
+    REACTION = "REACTION"
 
 
 class DeltaType(str, Enum):

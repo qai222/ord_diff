@@ -1,5 +1,6 @@
 # ORD DIFF
-Find differences between two messages defined in the Open Reaction Database.
+Find differences between two messages defined in 
+the Open Reaction Database using [DeepDiff](https://deepdiff.readthedocs.io/en/latest/).
 
 ## Usage
-see [examples](./examples)
+See the [example notebook](./example.ipynb).

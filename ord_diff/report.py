@@ -46,7 +46,7 @@ def report_diff(
         if leaf in diff.delta_leafs[DeltaType.ADDITION]:
             record = {
                 "from": "m2",
-                "path": ".".join(leaf.path_list),
+                "path": ".".join([str(p) for p in leaf.path_list]),
                 "change_type": DeltaType.ADDITION,
             }
             if message_type == MessageType.COMPOUND:
@@ -55,19 +55,20 @@ def report_diff(
     return pd.DataFrame.from_records(records)
 
 
-def report_diff_compound_list(
+def report_diff_list(
         # input1: list[reaction_pb2.Compound],
         # input2: list[reaction_pb2.Compound],
         # text1:str = None,
         # text2:str = None,
-        compound_list_diff: MDictListDiff
+        compound_list_diff: MDictListDiff,
+        message_type: MessageType,
 ):
     # compound_list_diff = MDictListDiff.from_message_list_pair(input1, input2, MessageType.COMPOUND, text1, text2)
     dfs = []
     for i, diff in enumerate(compound_list_diff.pair_comparisons):
         if diff is None:
             continue
-        df = report_diff(diff, message_type=MessageType.COMPOUND)
+        df = report_diff(diff, message_type=message_type)
         df['pair_index'] = i
         dfs.append(df)
     return pd.concat(dfs, ignore_index=True)

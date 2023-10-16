@@ -7,7 +7,7 @@ from google.protobuf import json_format
 from ord_schema.message_helpers import find_submessages
 from ord_schema.proto import reaction_pb2
 
-from ord_diff.report import report_diff, MDictDiff, MessageType, report_diff_compound_list, MDictListDiff
+from ord_diff.report import report_diff, MDictDiff, MessageType, report_diff_list, MDictListDiff
 from ord_diff.utils import flatten, flat_deepdiff_entry, flat_list_of_lists
 
 
@@ -97,5 +97,5 @@ class TestSchema:
     def test_diff_compound_list(self, sample_compound_list_pairs):
         for cl1, cl2 in sample_compound_list_pairs:
             diff = MDictListDiff.from_message_list_pair(cl1, cl2, MessageType.COMPOUND)
-            df = report_diff_compound_list(diff)
+            df = report_diff_list(diff, message_type=MessageType.COMPOUND)
             assert df.shape
